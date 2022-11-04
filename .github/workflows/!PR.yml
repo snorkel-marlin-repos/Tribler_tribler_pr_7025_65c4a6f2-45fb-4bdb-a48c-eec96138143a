@@ -1,0 +1,130 @@
+name: PR
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - ready_for_review
+
+jobs:
+  changes: # detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      src: ${{ steps.filter.outputs.src }}
+      scripts: ${{ steps.filter.outputs.scripts }}
+      doc: ${{ steps.filter.outputs.doc }}
+      build: ${{ steps.filter.outputs.build }}
+    steps:
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            src:
+              - '.github/workflows/pytest.yml'
+              - '.github/workflows/guitest.yml'
+              - '.github/workflows/coverage.yml'
+              - '.github/actions/**'
+              - 'src/**'
+              - 'requirements*'
+            scripts:
+              - '.github/workflows/scripttest.yml'
+              - '.github/actions/**'
+              - 'scripts/**'
+              - 'src/**'
+              - 'requirements*'
+            doc:
+              - '.github/workflows/documentation.yml'
+              - '.github/actions/**'
+              - 'doc/**'
+              - 'src/**'
+              - 'requirements*'
+            build:
+              - '.github/workflows/build*.yml'
+              - '.github/actions/**'
+              - 'build/**'
+              - 'src/**'
+              - 'requirements*'
+  
+  
+  # PR is Draft and PR is Ready
+  pytest:
+    needs: changes
+    if: ${{ needs.changes.outputs.src == 'true' }}
+    uses: ./.github/workflows/pytest.yml
+    with:
+      python-version: 3.8
+      matrix: '{"os": ["windows-latest"]}'
+
+  guitest:
+    needs: changes
+    if: ${{ needs.changes.outputs.src == 'true' }}
+    uses: ./.github/workflows/guitest.yml
+    with:
+      python-version: 3.8
+      matrix: '{"os": ["windows-latest"]}'
+
+  scripttest:
+    needs: changes
+    if: ${{ needs.changes.outputs.scripts == 'true' }}
+    uses: ./.github/workflows/scripttest.yml
+    with:
+      python-version: 3.8
+
+  coverage:
+    needs: changes
+    if: ${{ needs.changes.outputs.src == 'true' }}
+    uses: ./.github/workflows/coverage.yml
+    with:
+      python-version: 3.8
+
+  # PR is Ready only
+  pytest_nix:
+    needs: changes
+    if: ${{needs.changes.outputs.src == 'true' && !github.event.pull_request.draft}}
+    uses: ./.github/workflows/pytest.yml
+    with:
+      python-version: 3.8
+      matrix: '{"os": ["macos-latest", "ubuntu-latest"]}'
+
+  guitest_nix:
+    needs: changes
+    if: ${{needs.changes.outputs.src == 'true' && !github.event.pull_request.draft}}
+    uses: ./.github/workflows/guitest.yml
+    with:
+      python-version: 3.8
+      matrix: '{"os": ["macos-latest", "ubuntu-latest"]}'
+
+  ubuntu:
+    needs: changes
+    if: ${{needs.changes.outputs.build == 'true' && !github.event.pull_request.draft}}
+    uses: ./.github/workflows/build_ubuntu.yml
+    with:
+      upload: false
+      os: ubuntu-20.04
+      python-version: 3.8
+
+  windows:
+    needs: changes
+    if: ${{needs.changes.outputs.build == 'true' && !github.event.pull_request.draft}}
+    uses: ./.github/workflows/build_windows.yml
+    with:
+      upload: false
+      os: windows-latest
+      python-version: 3.8
+
+  mac:
+    needs: changes
+    if: ${{needs.changes.outputs.build == 'true' && !github.event.pull_request.draft}}
+    uses: ./.github/workflows/build_mac.yml
+    with:
+      upload: false
+      os: macos-10.15
+      python-version: 3.8
+
+  documentation:
+    needs: changes
+    if: ${{needs.changes.outputs.doc == 'true' && !github.event.pull_request.draft}}
+    uses: ./.github/workflows/documentation.yml
+    with:
+      python-version: 3.8
